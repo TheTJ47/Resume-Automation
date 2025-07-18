@@ -1,4 +1,4 @@
-<img width="761" height="1041" alt="image" src="https://github.com/user-attachments/assets/50551239-9dee-4c42-a526-8e43697b46e4" /># 🧠 AI-Powered Resume Generator using Google Forms + Cohere API
+# 🧠 AI-Powered Resume Generator using Google Forms + Cohere API
 
 A smart resume generation system that automates resume creation using Google Forms and enhances the content using OpenAI GPT-3.5.
 
@@ -25,6 +25,7 @@ A smart resume generation system that automates resume creation using Google For
 ---
 
 ## 📸 Sample Output
+
 <img width="761" height="1041" alt="image" src="https://github.com/user-attachments/assets/cb24e945-fd6e-4a1d-92a8-9d5a33565fbf" />
 
 
