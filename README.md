@@ -15,7 +15,7 @@ A smart resume generation system that automates resume creation using Google For
 
 ## 🛠️ Tech Stack
 
-- Google Forms
+- Google Forms : https://docs.google.com/forms/d/1ELMctVI0m9JA-akoqxKyKbZ2EIHrugwU_Y7Vd1aZT58
 - Google Sheets
 - Google Docs
 - Google Apps Script (JavaScript)
