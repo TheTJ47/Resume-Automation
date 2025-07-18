@@ -1,0 +1,141 @@
+const COHERE_API_KEY = "ENTER COHERE KEY";
+const TEMPLATE_ID = "1megmA6GbIyicdVrHS4FMIDoCpZ4f7GOcKh1aZwC0IbA";
+const ADMIN_EMAIL = "tjverse2.0@gmail.com";
+
+function onFormSubmit(e) {
+  Logger.log(JSON.stringify(e.namedValues));
+  const formData = e.namedValues;
+
+  const name = formData["Name"][0].toUpperCase();
+  const email = formData["Email"][0];
+  const phone = formData["Phone number"][0];
+  const rawObjective = formData["Career Objective"][0];
+  const rawSkills = formData["Skills"][0];
+  const rawProjects = formData["Projects"][0];
+  const rawExperience = formData["Experience"] ? formData["Experience"][0] : "";
+  const rawEducation = formData["Education"][0];
+  const rawCerts = formData["Certifications"] ? formData["Certifications"][0] : "";
+
+  const combinedInput = `
+[IMPORTANT INSTRUCTIONS FOR AI]
+
+You are cleaning up messy resume inputs. Fix spacing, alignment, grammar, spelling, clarity, and structure. You MUST follow these rules:
+
+1. DO NOT comment, explain, summarize, or add guidance.
+2. DO NOT say anything like "remember", "generated response", or "please review".
+3. DO NOT add markdown symbols like #, *, >, etc.
+4. DO NOT reorder sections or add new headings.
+5. DO NOT skip any information.
+6. Clean bullet formatting and structure where needed.
+
+Fix the student's writing and return each section clearly.
+
+Return output in this format, using TWO line breaks between sections:
+
+== Career Objective ==
+${rawObjective}
+
+== Education ==
+${rawEducation}
+
+== Skills ==
+${rawSkills}
+
+== Projects ==
+${rawProjects}
+
+== Experience ==
+${rawExperience}
+`;
+
+  const improvedCombined = callCohereStrict(combinedInput);
+
+  const cleanedOutput = improvedCombined
+    .replace(/^#+\s?/gm, "")                      // Remove markdown headings
+    .replace(/[*_`>~-]/g, "")                     // Remove common markdown chars
+    .replace(/== (.*?) ==/g, "===$1===")          // Optional: add visual marker to split
+    .replace(/\n{3,}/g, "\n\n")                   // Remove excess blank lines
+    .trim();
+
+  const parts = cleanedOutput.split(/===.*?===/);
+  const [_, improvedObjective, improvedEducation, improvedSkills, improvedProjects, improvedExperience] = parts.map(p => p?.trim() || "");
+
+  const templateFile = DriveApp.getFileById(TEMPLATE_ID);
+  const newFile = templateFile.makeCopy(`Resume - ${name}`);
+  const newDoc = DocumentApp.openById(newFile.getId());
+  const body = newDoc.getBody();
+
+  body.replaceText("{{name}}", name);
+  body.replaceText("{{email}}", email);
+  body.replaceText("{{phone}}", phone);
+  body.replaceText("{{objective}}", improvedObjective || rawObjective);
+  body.replaceText("{{education}}", improvedEducation || rawEducation);
+  body.replaceText("{{skills}}", improvedSkills || rawSkills);
+  body.replaceText("{{projects}}", improvedProjects || rawProjects);
+  body.replaceText("{{experience}}", improvedExperience || rawExperience);
+  body.replaceText("{{certifications}}", rawCerts);
+
+  newDoc.saveAndClose();
+  const pdf = DriveApp.getFileById(newDoc.getId()).getAs("application/pdf");
+
+  
+  MailApp.sendEmail({
+  to: `${email}, ${ADMIN_EMAIL}`,
+  subject: `Your Google Form Details Resume - ${name}`,
+  body: `Hi ${name},\n\nAttached is your AI-enhanced resume generated from the form submission.\n\nThank you!`,
+  attachments: [pdf]
+});
+}
+
+function callCohereStrict(prompt) {
+  const url = "https://api.cohere.ai/v1/generate";
+  const payload = {
+    model: "command",
+    prompt: prompt,
+    max_tokens: 500,
+    temperature: 0.3,
+    stop_sequences: ["#", "*", "##", "###", "If you", "Here", "Let's", "Based on", "You can", "For example"],
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: "Bearer " + COHERE_API_KEY
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    let clean = json.generations?.[0]?.text || "";
+
+    return clean
+      .replace(/.*If you.*/gi, "")
+      .replace(/.*Here.*/gi, "")
+      .replace(/.*Let me.*/gi, "")
+      .replace(/.*Based on.*/gi, "")
+      .replace(/.*For example.*/gi, "")
+      .replace(/.*You can.*/gi, "")
+      .trim();
+  } catch (error) {
+    Logger.log("Cohere error: " + error);
+    return "";
+  }
+}
+
+function testLastFormSubmission() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const lastRow = sheet.getRange(sheet.getLastRow(), 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  let namedValues = {};
+  headers.forEach((header, index) => {
+    namedValues[header] = [lastRow[index]];
+  });
+
+  const fakeEvent = { namedValues };
+  onFormSubmit(fakeEvent);
+}
